@@ -1,0 +1,75 @@
+rules_version = '2';
+
+// ROOST data layout (keep in step with src/data/schema.ts):
+//   users/{uid}                      pointer from an account to its farm
+//   farms/{farmId}                   farm-level fields, ownerId, memberIds, schemaVersion
+//   farms/{farmId}/{collection}/{id} one document per record
+// A farm's id is its owner's uid. memberIds lets the owner share the farm later.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function farm(farmId) {
+      return get(/databases/$(database)/documents/farms/$(farmId)).data;
+    }
+
+    // The owner check needs no document read, so the owner's batched writes stay cheap.
+    function isMember(farmId) {
+      return signedIn() && (request.auth.uid == farmId || request.auth.uid in farm(farmId).memberIds);
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['farmId', 'name', 'email', 'updatedAt'])
+        && request.resource.data.farmId is string
+        // An account can only point at its own farm, or one it has been added to.
+        && (request.resource.data.farmId == uid || isMember(request.resource.data.farmId));
+      allow delete: if false;
+    }
+
+    match /farms/{farmId} {
+      // Reading a farm that doesn't exist yet is how the app learns it must create one.
+      allow read: if signedIn() && (resource == null || request.auth.uid in resource.data.memberIds);
+
+      allow create: if signedIn()
+        && farmId == request.auth.uid
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.farmName is string
+        && request.resource.data.farmName.size() <= 120;
+
+      // Members edit farm fields. Only the owner changes who is a member; nobody changes the owner.
+      allow update: if isMember(farmId)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion >= resource.data.schemaVersion
+        && request.resource.data.farmName is string
+        && request.resource.data.farmName.size() <= 120
+        && (request.auth.uid == resource.data.ownerId || request.resource.data.memberIds == resource.data.memberIds);
+
+      allow delete: if signedIn() && request.auth.uid == resource.data.ownerId;
+
+      match /{collection}/{recordId} {
+        allow read: if isMember(farmId) && collection in recordCollections();
+        allow create, update: if isMember(farmId)
+          && collection in recordCollections()
+          && request.resource.data.id == recordId
+          && request.resource.data.keys().size() <= 40;
+        allow delete: if isMember(farmId) && collection in recordCollections();
+      }
+    }
+
+    function recordCollections() {
+      return [
+        'people', 'houses', 'flocks', 'eggs', 'losses', 'feed', 'water', 'weights',
+        'vaccinations', 'treatments', 'stocks', 'suppliers', 'tasks', 'customers',
+        'sales', 'expenses', 'incubators', 'notes', 'photos', 'visitors'
+      ];
+    }
+  }
+}

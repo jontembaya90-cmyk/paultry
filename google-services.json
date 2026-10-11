@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "849510799591",
+    "project_id": "poultrypro-41c41",
+    "storage_bucket": "poultrypro-41c41.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:849510799591:android:8f34f3b476b14aa1b6aa42",
+        "android_client_info": {
+          "package_name": "com.poultrypro.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "849510799591-bvet4p84ejo3gjv21s9lum01hkrfe81u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.poultrypro.app",
+            "certificate_hash": "aae50a5cd00f1b8cf5c1a573043259d04668c94d"
+          }
+        },
+        {
+          "client_id": "849510799591-sqdks68b4g23ge72fr8uk7hevqkv8t32.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClPUurAWmLEqN4mBy-kYK-8Klfu9EKv14"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "849510799591-sqdks68b4g23ge72fr8uk7hevqkv8t32.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
