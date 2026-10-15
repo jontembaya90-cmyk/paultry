@@ -1,10 +1,8 @@
-import { useColorScheme, type TextStyle } from 'react-native';
+import type { TextStyle } from 'react-native';
 
-import { useAppearanceSetting } from '@/data/store';
+import { palette, type Palette } from './colors';
 
-import { palettes, type Palette } from './colors';
-
-export { palettes, toneColors, type Palette, type Tone } from './colors';
+export { palette, toneColors, type Palette, type Tone } from './colors';
 
 /** 4-point grid. `gutter` is the screen edge padding used everywhere. */
 export const space = {
@@ -75,10 +73,7 @@ export const motion = {
   stagger: 90,
 } as const;
 
-/** The active palette: the user's Day / Dawn choice, or the system setting on Auto. */
+/** The app palette. ROOST has one deep-blue theme; this stays a hook so a theme can return later. */
 export function useTheme(): Palette {
-  const system = useColorScheme();
-  const choice = useAppearanceSetting();
-  const dark = choice === 'dawn' || (choice === 'system' && system === 'dark');
-  return dark ? palettes.dark : palettes.light;
+  return palette;
 }

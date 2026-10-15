@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { startCloudSync, stopCloudSync } from '@/data/cloud';
 import { ensureToday, useFarm } from '@/data/store';
 import { useAuth } from '@/lib/auth';
+import { usePushNotifications } from '@/lib/notifications';
 import { useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -26,13 +27,10 @@ export default function RootLayout() {
     [symbolsRegular.name]: symbolsRegular.font,
   });
 
-  // Dawn Mode override. "system" hands control back to the OS.
-  const appearance = farm.settings.appearance;
+  // The deep-blue theme is dark: keep system chrome (dialogs, keyboard, date pickers) dark too.
   useEffect(() => {
-    // Native only: keeps system chrome (status bar, dialogs, keyboard) in step with Dawn Mode.
-    if (process.env.EXPO_OS === 'web') return;
-    Appearance.setColorScheme(appearance === 'system' ? 'unspecified' : appearance === 'dawn' ? 'dark' : 'light');
-  }, [appearance]);
+    if (process.env.EXPO_OS !== 'web') Appearance.setColorScheme('dark');
+  }, []);
 
   // Build today's task list on launch and whenever the app returns on a new day.
   useEffect(() => {
@@ -47,6 +45,11 @@ export default function RootLayout() {
     if (user) void startCloudSync(user);
     else stopCloudSync();
   }, [user]);
+
+  // Ask for notifications once the farm is set up (never on the sign-in or welcome screens),
+  // and route taps on a push to the screen it names.
+  const fontsReady = loaded || !!error;
+  usePushNotifications(user?.uid, fontsReady && !!user && farm.onboarded);
 
   // Hold the splash until fonts load and Firebase has restored any saved session.
   const ready = (loaded || !!error) && auth.status !== 'loading';

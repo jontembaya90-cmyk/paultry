@@ -1,104 +1,62 @@
 /**
- * ROOST colour tokens.
+ * ROOST colour tokens: one deep-blue theme for every phone.
  *
- * Brand hues are fixed by the brief (Yolk, Barn, Sage, Straw, Feather, Coop Night, Ink, Sky).
- * Each hue has four roles so text always meets WCAG AA:
+ * Brand hues (Yolk, Barn, Sage, Sky, Wheat) sit on a deep navy ground. Each hue has four
+ * roles so text always meets WCAG AA (4.5:1 or better on bg, surface and surfaceAlt):
  *   - `x`      the fill colour (rings, bars, buttons)
- *   - `onX`    text/icons drawn on top of the fill (onSage/onSky/onWheat: icons only, 3:1+)
- *   - `xText`  the hue darkened/lightened enough to be used as text on `bg`/`surface`
- *   - `xSoft`  a quiet tint for banners and badges
+ *   - `onX`    text/icons drawn on top of the fill
+ *   - `xText`  the hue lightened enough to be used as text on `bg`/`surface`
+ *   - `xSoft`  a quiet tint for banners and badges (warm hues use dark amber, not a
+ *              blend: yellow over blue turns olive)
  *
- * "Dawn Mode" is the dark palette: warm, low-glare, never pure white text.
  * These are plain hex strings so they can be passed into Reanimated and SVG.
  */
 
-const light = {
-  scheme: 'light' as 'light' | 'dark',
-  bg: '#FBF8F2', // Feather
-  surface: '#FFFDF8',
-  surfaceAlt: '#F4EDDF',
-  straw: '#E9DCC0',
-  ink: '#1C1C1E',
-  inkSecondary: '#5C574E',
-  inkTertiary: '#716A5E',
-  hairline: 'rgba(60, 45, 20, 0.12)',
-  track: 'rgba(60, 45, 20, 0.08)',
-  scrim: 'rgba(20, 22, 26, 0.45)',
+const navy = {
+  scheme: 'dark' as 'light' | 'dark',
+  bg: '#0B1E3F', // Deep blue
+  surface: '#132A52',
+  surfaceAlt: '#1C3664',
+  straw: '#2A4675',
+  ink: '#EEF3FB',
+  inkSecondary: '#B7C5DC',
+  inkTertiary: '#94A6C4',
+  hairline: 'rgba(238, 243, 251, 0.12)',
+  track: 'rgba(238, 243, 251, 0.10)',
+  scrim: 'rgba(3, 9, 22, 0.6)',
 
   yolk: '#F5B700',
-  onYolk: '#1C1C1E',
-  yolkText: '#8A6100',
-  yolkSoft: '#FDF0C7',
-
-  barn: '#B5412E',
-  onBarn: '#FFFFFF',
-  barnText: '#A33A28',
-  barnSoft: '#F8E1DB',
-
-  sage: '#6E8B5E',
-  onSage: '#FFFFFF',
-  sageText: '#4A6A3C',
-  sageSoft: '#E4ECDD',
-
-  sky: '#4A90C2',
-  onSky: '#FFFFFF',
-  skyText: '#2B6A98',
-  skySoft: '#DDEBF5',
-
-  wheat: '#B98A4A',
-  onWheat: '#FFFFFF',
-  wheatText: '#7C5824',
-  wheatSoft: '#F2E6D1',
-
-  shadowCard: '0 1px 2px rgba(80, 55, 20, 0.06), 0 6px 20px rgba(80, 55, 20, 0.06)',
-  shadowRaised: '0 4px 10px rgba(80, 55, 20, 0.10), 0 12px 32px rgba(80, 55, 20, 0.10)',
-};
-
-export type Palette = typeof light;
-
-const dawn: Palette = {
-  scheme: 'dark',
-  bg: '#14161A', // Coop Night
-  surface: '#1E1F21',
-  surfaceAlt: '#29272A',
-  straw: '#3A3328',
-  ink: '#F3ECDF',
-  inkSecondary: '#BDB3A2',
-  inkTertiary: '#9D9483',
-  hairline: 'rgba(243, 236, 223, 0.10)',
-  track: 'rgba(243, 236, 223, 0.08)',
-  scrim: 'rgba(0, 0, 0, 0.6)',
-
-  yolk: '#E9AE0B',
   onYolk: '#1A1507',
-  yolkText: '#F2C443',
-  yolkSoft: '#382D10',
+  yolkText: '#FFCB45',
+  yolkSoft: '#3D3216',
 
   barn: '#B5412E',
   onBarn: '#FFFFFF',
-  barnText: '#F0907A',
-  barnSoft: '#3A1D18',
+  barnText: '#FF9F8A',
+  barnSoft: '#332F4B',
 
-  sage: '#809F6E',
-  onSage: '#10170C',
-  sageText: '#A9C896',
-  sageSoft: '#212C1D',
+  sage: '#7FA56B',
+  onSage: '#0E1A0A',
+  sageText: '#A9D193',
+  sageSoft: '#294357',
 
-  sky: '#5AA0D2',
-  onSky: '#0B1822',
-  skyText: '#92C3E8',
-  skySoft: '#16283A',
+  sky: '#4FB3E8',
+  onSky: '#06182A',
+  skyText: '#8FD2F7',
+  skySoft: '#1F4570',
 
-  wheat: '#C99B58',
+  wheat: '#D0A060',
   onWheat: '#1B1408',
-  wheatText: '#E2BC83',
-  wheatSoft: '#2F2619',
+  wheatText: '#EBC88F',
+  wheatSoft: '#3A3020',
 
-  shadowCard: '0 0 0 1px rgba(243, 236, 223, 0.05)',
-  shadowRaised: '0 8px 28px rgba(0, 0, 0, 0.45)',
+  shadowCard: '0 0 0 1px rgba(238, 243, 251, 0.06), 0 6px 20px rgba(2, 8, 20, 0.35)',
+  shadowRaised: '0 8px 28px rgba(2, 8, 20, 0.55)',
 };
 
-export const palettes = { light, dark: dawn } as const;
+export type Palette = typeof navy;
+
+export const palette: Palette = navy;
 
 /** The semantic tone used by badges, banners and alerts. Never shown without an icon + label. */
 export type Tone = 'yolk' | 'barn' | 'sage' | 'sky' | 'wheat' | 'neutral';

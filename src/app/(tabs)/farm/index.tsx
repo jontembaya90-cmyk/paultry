@@ -13,9 +13,9 @@ import { leaveCloud, unsyncedChanges } from '@/data/cloud';
 import { fmt } from '@/data/format';
 import { activeFlocks, aliveOn } from '@/data/selectors';
 import { loadSampleFarm, resetFarm, updateSettings, useFarm, useSyncing } from '@/data/store';
-import type { Appearance } from '@/data/types';
 import { signOut, useAuth } from '@/lib/auth';
 import { haptic } from '@/lib/haptics';
+import { enablePush, unregisterFromPush, usePushStatus } from '@/lib/notifications';
 import { radius, space, useTheme } from '@/theme';
 
 const CURRENCIES = ['$', 'KES', 'UGX', 'TZS', 'NGN', 'GHS', 'ZAR', 'ETB', '€', '£', '₹'];
@@ -26,6 +26,7 @@ export default function FarmScreen() {
   const farm = useFarm();
   const syncing = useSyncing();
   const auth = useAuth();
+  const push = usePushStatus();
   const st = farm.settings;
   const [handing, setHanding] = useState(false);
   const birds = activeFlocks(farm).reduce((n, f) => n + aliveOn(farm, f), 0);
@@ -177,23 +178,6 @@ export default function FarmScreen() {
         <Card style={{ gap: space.lg }}>
           <View style={{ gap: space.sm }}>
             <Txt variant="label" tone="secondary">
-              APPEARANCE
-            </Txt>
-            <Segmented<Appearance>
-              options={[
-                { value: 'system', label: 'Auto' },
-                { value: 'light', label: 'Day', icon: 'sun' },
-                { value: 'dawn', label: 'Dawn', icon: 'moon' },
-              ]}
-              value={st.appearance}
-              onChange={(appearance) => updateSettings({ appearance })}
-            />
-            <Txt variant="caption" tone="secondary">
-              Dawn Mode is dark, warm and low-glare for early checks.
-            </Txt>
-          </View>
-          <View style={{ gap: space.sm }}>
-            <Txt variant="label" tone="secondary">
               CURRENCY
             </Txt>
             <ChipRow scroll>
@@ -252,6 +236,25 @@ export default function FarmScreen() {
               subtitle={auth.user.email ?? undefined}
               accessibilityLabel={`Signed in as ${auth.user.name ?? ''} ${auth.user.email ?? ''}`}
             />
+            {push !== 'unavailable' && (
+              <>
+                <Divider inset={52} />
+                <Row
+                  icon="message"
+                  iconTone={push === 'granted' ? 'sage' : 'neutral'}
+                  title="Notifications"
+                  subtitle={
+                    push === 'granted'
+                      ? 'On: vaccine reminders and urgent alerts'
+                      : push === 'denied'
+                        ? 'Off. Turn on in phone settings'
+                        : 'Get vaccine reminders and urgent alerts'
+                  }
+                  chevron={push !== 'granted'}
+                  onPress={push === 'granted' ? undefined : () => void enablePush(auth.user.uid)}
+                />
+              </>
+            )}
             <Divider inset={52} />
             <Row
               icon="logout"
@@ -271,9 +274,11 @@ export default function FarmScreen() {
                     {
                       text: 'Sign out',
                       style: 'destructive',
-                      onPress: () => {
+                      onPress: async () => {
+                        // Drop this phone's push token while still signed in, so the rules allow it.
+                        await unregisterFromPush(auth.user.uid);
                         leaveCloud();
-                        void signOut();
+                        await signOut();
                       },
                     },
                   ],

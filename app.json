@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "scheme": "paultry",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
       "icon": "./assets/brand/icon.png"
     },
@@ -30,13 +30,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FBF8F2",
+          "backgroundColor": "#0B1E3F",
           "image": "./assets/brand/splash.png",
-          "imageWidth": 200,
-          "dark": {
-            "backgroundColor": "#14161A",
-            "image": "./assets/brand/splash.png"
-          }
+          "imageWidth": 200
         }
       ],
       "expo-sqlite",
@@ -57,6 +53,14 @@
             "useFrameworks": "dynamic"
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/brand/android-monochrome.png",
+          "color": "#F5B700",
+          "defaultChannel": "reminders"
+        }
       ]
     ],
     "experiments": {
@@ -69,6 +73,7 @@
         "projectId": "cf659b84-138e-4d2b-8b6a-2993d885fda0"
       }
     },
-    "owner": "jontembayas-team"
+    "owner": "jontembayas-team",
+    "backgroundColor": "#0B1E3F"
   }
 }

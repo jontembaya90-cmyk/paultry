@@ -29,7 +29,6 @@ export default function SignIn() {
   const c = useTheme();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const dark = c.scheme === 'dark';
   const enter = (delay: number) => (reduced ? FadeIn.duration(300) : FadeInDown.delay(delay).springify().damping(18));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -57,7 +56,8 @@ export default function SignIn() {
         paddingBottom: insets.bottom + space.xl,
         paddingHorizontal: space.gutter,
       }}>
-      <GradientFill stops={dark ? [[0, '#3A2A2A'], [0.3, '#2A2226'], [0.7, '#14161A']] : [[0, '#FFE3A3'], [0.35, '#FDF0D2'], [0.75, '#FBF8F2']]} />
+      {/* First light over deep blue: a lifted navy at the top fading into the background. */}
+      <GradientFill stops={[[0, '#21447F'], [0.4, '#14305E'], [0.8, c.bg]]} />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xl, maxWidth: 520, width: '100%', alignSelf: 'center' }}>
         <Animated.View entering={reduced ? FadeIn : FadeIn.duration(900)}>
           <Illustration name="sunrise" size={220} />

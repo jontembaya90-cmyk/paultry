@@ -1,11 +1,9 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { AlertCard } from '@/components/alert-card';
 import { Button } from '@/components/button';
 import { TargetChart } from '@/components/charts';
-import { Segmented } from '@/components/controls';
 import { FlockCard } from '@/components/flock-card';
 import { PulseRings } from '@/components/flock-pulse';
 import { HatchRing } from '@/components/hatch-ring';
@@ -19,7 +17,7 @@ import { EggHero, EmptyState, SyncPill, TaskRow, TrayGlyph } from '@/components/
 import { fmt, today } from '@/data/format';
 import { activeFlocks, alerts, eggsOn, eggTarget, feedRunway, flockPulse, incubatorStatus, performanceSeries, tasksOn, vaccinesDueToday } from '@/data/selectors';
 import { useFarm } from '@/data/store';
-import { fonts, motion, palettes, radius, space, type, useTheme, type Palette } from '@/theme';
+import { fonts, motion, palette, radius, space, type, useTheme, type Palette } from '@/theme';
 
 function lum(hex: string) {
   const v = hex.replace('#', '').match(/.{2}/g)!.map((h) => {
@@ -39,8 +37,8 @@ const SWATCHES: { key: keyof Palette; name: string; role: string; on?: keyof Pal
   { key: 'sage', name: 'Sage', role: 'Health, on track', on: 'onSage' },
   { key: 'sky', name: 'Sky', role: 'Water, information', on: 'onSky' },
   { key: 'wheat', name: 'Wheat', role: 'Feed', on: 'onWheat' },
-  { key: 'straw', name: 'Straw', role: 'Warm secondary surface' },
-  { key: 'bg', name: 'Feather / Coop Night', role: 'Background' },
+  { key: 'straw', name: 'Straw', role: 'Raised secondary surface' },
+  { key: 'bg', name: 'Deep blue', role: 'Background' },
   { key: 'ink', name: 'Ink', role: 'Primary text' },
 ];
 
@@ -59,8 +57,7 @@ function Phone({ children, w = 168, h = 168, label }: { children: React.ReactNod
 export default function DesignSystem() {
   const c = useTheme();
   const farm = useFarm();
-  const [mode, setMode] = useState<'light' | 'dark'>(c.scheme === 'dark' ? 'dark' : 'light');
-  const p = palettes[mode];
+  const p = palette;
   const t = today();
   const pulse = flockPulse(farm);
   const flock = activeFlocks(farm)[0];
@@ -82,7 +79,6 @@ export default function DesignSystem() {
       {/* Colour */}
       <View style={{ gap: space.md }}>
         <SectionHeader title="Colour" />
-        <Segmented options={[{ value: 'light', label: 'Day', icon: 'sun' }, { value: 'dark', label: 'Dawn', icon: 'moon' }]} value={mode} onChange={setMode} />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, backgroundColor: p.bg, padding: space.md, borderRadius: radius.lg }}>
           {SWATCHES.map((s) => {
             const fill = p[s.key] as string;
@@ -108,7 +104,7 @@ export default function DesignSystem() {
           })}
         </View>
         <Txt variant="caption" tone="secondary">
-          Text colours on {mode === 'light' ? 'Feather' : 'Coop Night'}: ink {contrast(p.ink, p.bg).toFixed(1)}:1 · secondary {contrast(p.inkSecondary, p.bg).toFixed(1)}:1 · Barn text {contrast(p.barnText, p.bg).toFixed(1)}:1 · Sage text {contrast(p.sageText, p.bg).toFixed(1)}:1 · Yolk text {contrast(p.yolkText, p.bg).toFixed(1)}:1. Every status pairs colour with an icon and a word.
+          Text colours on Deep blue: ink {contrast(p.ink, p.bg).toFixed(1)}:1 · secondary {contrast(p.inkSecondary, p.bg).toFixed(1)}:1 · Barn text {contrast(p.barnText, p.bg).toFixed(1)}:1 · Sage text {contrast(p.sageText, p.bg).toFixed(1)}:1 · Yolk text {contrast(p.yolkText, p.bg).toFixed(1)}:1. Every status pairs colour with an icon and a word.
         </Txt>
       </View>
 

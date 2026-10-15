@@ -420,9 +420,3 @@ export function removePerson(id: string) {
 export function assignTask(taskId: string, personId: string) {
   set((s) => ({ ...s, tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, assignee: personId } : t)) }));
 }
-
-const getAppearance = () => state.settings.appearance;
-/** Narrow subscription: re-renders only when the Day / Dawn setting changes. */
-export function useAppearanceSetting() {
-  return useSyncExternalStore(subscribe, getAppearance, getAppearance);
-}

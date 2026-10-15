@@ -179,3 +179,33 @@ describe('stranger', () => {
     await assertFails(getDoc(doc(db(STRANGER), 'users', OWNER)));
   });
 });
+
+describe('push tokens', () => {
+  const device = () => ({ token: 'fcm-token-abc', platform: 'android', appVersion: '1.0.0', updatedAt: serverTimestamp() });
+  const ref = (d, uid = OWNER) => doc(d, 'users', uid, 'devices', 'device_1');
+
+  test('a phone saves and refreshes its own token, as the app does', async () => {
+    await assertSucceeds(setDoc(ref(db(OWNER)), device()));
+    await assertSucceeds(setDoc(ref(db(OWNER)), { ...device(), token: 'fcm-token-rotated' }));
+  });
+
+  test('a phone removes its token on sign-out', async () => {
+    await assertSucceeds(setDoc(ref(db(OWNER)), device()));
+    const { deleteDoc } = await import('firebase/firestore');
+    await assertSucceeds(deleteDoc(ref(db(OWNER))));
+  });
+
+  test('nobody else can read or plant tokens on an account', async () => {
+    await assertSucceeds(setDoc(ref(db(OWNER)), device()));
+    await assertFails(getDoc(ref(db(STRANGER))));
+    await assertFails(setDoc(ref(db(STRANGER)), device()));
+    await assertFails(getDoc(ref(db(null))));
+  });
+
+  test('tokens must be well formed', async () => {
+    await assertFails(setDoc(ref(db(OWNER)), { ...device(), token: '' }));
+    await assertFails(setDoc(ref(db(OWNER)), { ...device(), platform: 'windows' }));
+    await assertFails(setDoc(ref(db(OWNER)), { ...device(), extra: true }));
+    await assertFails(setDoc(ref(db(OWNER)), { ...device(), updatedAt: new Date(0) }));
+  });
+});
