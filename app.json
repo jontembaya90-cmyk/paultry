@@ -18,7 +18,7 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
-      "package": "com.poultrypro.app",
+      "package": "com.roost.app",
       "googleServicesFile": "./google-services.json"
     },
     "web": {

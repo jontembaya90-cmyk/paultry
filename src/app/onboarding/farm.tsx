@@ -9,12 +9,13 @@ import { useDraft } from '@/components/onboarding-draft';
 import { Txt } from '@/components/text';
 import type { FarmType } from '@/data/types';
 import { haptic } from '@/lib/haptics';
+import { useT, type Phrase } from '@/lib/i18n';
 import { radius, space, useTheme } from '@/theme';
 
-const TYPES: { key: FarmType; label: string; hint: string; icon: IconName }[] = [
+const TYPES: { key: FarmType; label: Phrase; hint: Phrase; icon: IconName }[] = [
   { key: 'layers', label: 'Layers', hint: 'Hens for eggs', icon: 'egg' },
   { key: 'broilers', label: 'Broilers', hint: 'Meat birds', icon: 'hen' },
-  { key: 'indigenous', label: 'Indigenous', hint: 'Free-range, dual-purpose', icon: 'grass' },
+  { key: 'indigenous', label: 'Indigenous', hint: 'Kienyeji, Kenbro, Sasso F1, Kuroiler', icon: 'grass' },
   { key: 'ducks', label: 'Ducks', hint: 'Meat or eggs', icon: 'duck' },
   { key: 'turkeys', label: 'Turkeys', hint: 'Growers and breeders', icon: 'turkey' },
   { key: 'quail', label: 'Quail', hint: 'Small birds, many eggs', icon: 'quail' },
@@ -23,6 +24,7 @@ const TYPES: { key: FarmType; label: string; hint: string; icon: IconName }[] = 
 
 export default function FarmStep() {
   const c = useTheme();
+  const tr = useT();
   const { draft, update } = useDraft();
   const toggle = (k: FarmType) => {
     const on = draft.farmTypes.includes(k);
@@ -34,11 +36,11 @@ export default function FarmStep() {
   return (
     <OnboardingFrame
       step={1}
-      title="What do you keep?"
-      subtitle="Pick everything that applies. You can add more later."
+      title={tr('What do you keep?')}
+      subtitle={tr('Pick everything that applies. You can add more later.')}
       footer={
         <Button
-          title={draft.farmTypes.length ? 'Continue' : 'Pick at least one'}
+          title={draft.farmTypes.length ? tr('Continue') : tr('Pick at least one')}
           size="xl"
           full
           disabled={!draft.farmTypes.length}
@@ -54,7 +56,7 @@ export default function FarmStep() {
               onPress={() => toggle(t.key)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: on }}
-              accessibilityLabel={`${t.label}, ${t.hint}`}
+              accessibilityLabel={`${tr(t.label)}, ${tr(t.hint)}`}
               style={({ pressed }) => ({
                 flexBasis: '47%',
                 flexGrow: 1,
@@ -84,17 +86,17 @@ export default function FarmStep() {
                   {on && <Icon name="check" size={18} color={c.onYolk} />}
                 </View>
               </View>
-              <Txt variant="title3">{t.label}</Txt>
+              <Txt variant="title3">{tr(t.label)}</Txt>
               <Txt variant="caption" tone="secondary">
-                {t.hint}
+                {tr(t.hint)}
               </Txt>
             </Pressable>
           );
         })}
       </View>
       <View style={{ gap: space.lg }}>
-        <Field label="Farm name" placeholder="Sunrise Poultry Farm" value={draft.farmName} onChangeText={(farmName) => update({ farmName })} autoCapitalize="words" returnKeyType="next" />
-        <Field label="Your first name" placeholder="Amina" value={draft.ownerName} onChangeText={(ownerName) => update({ ownerName })} autoCapitalize="words" autoComplete="given-name" />
+        <Field label={tr('Farm name')} placeholder="Sunrise Poultry Farm" value={draft.farmName} onChangeText={(farmName) => update({ farmName })} autoCapitalize="words" returnKeyType="next" />
+        <Field label={tr('Your first name')} placeholder="Amina" value={draft.ownerName} onChangeText={(ownerName) => update({ ownerName })} autoCapitalize="words" autoComplete="given-name" />
       </View>
     </OnboardingFrame>
   );

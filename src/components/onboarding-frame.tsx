@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconButton } from '@/components/button';
 import { Txt } from '@/components/text';
+import { useT } from '@/lib/i18n';
 import { space, useTheme } from '@/theme';
 
 /** Shared scaffold for onboarding steps: progress dots, title, scrolling body, pinned action. */
@@ -23,14 +24,15 @@ export function OnboardingFrame({
 }) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
+  const tr = useT();
   return (
     <KeyboardAvoidingView behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={{ paddingTop: insets.top + space.sm, paddingHorizontal: space.gutter, flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-        <IconButton icon="back" label="Back" variant="ghost" onPress={() => router.back()} />
+        <IconButton icon="back" label={tr('Back')} variant="ghost" onPress={() => router.back()} />
         <View
           style={{ flex: 1, flexDirection: 'row', gap: space.xs }}
           accessible
-          accessibilityLabel={`Step ${step} of 3`}>
+          accessibilityLabel={tr('Step {n} of 3', { n: step })}>
           {[1, 2, 3].map((i) => (
             <View key={i} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: i <= step ? c.yolk : c.track }} />
           ))}

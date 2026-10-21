@@ -21,6 +21,7 @@ import { Icon, type IconName } from '@/components/icon';
 import { Card } from '@/components/surface';
 import { Txt } from '@/components/text';
 import type { Vital } from '@/data/selectors';
+import { useT } from '@/lib/i18n';
 import { motion, space, useTheme, type Palette } from '@/theme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -108,6 +109,7 @@ export function PulseRings({ vitals, size, breathe = true }: { vitals: Vital[]; 
 
 function Legend({ v }: { v: Vital }) {
   const c = useTheme();
+  const tr = useT();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 40 }}>
       <View style={{ width: 28, height: 28, borderRadius: 9, backgroundColor: vitalColor(c, v.key), alignItems: 'center', justifyContent: 'center' }}>
@@ -115,7 +117,7 @@ function Legend({ v }: { v: Vital }) {
       </View>
       <View style={{ flex: 1 }}>
         <Txt variant="caption" tone="secondary" numberOfLines={1}>
-          {v.label}
+          {tr(v.label)}
         </Txt>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Txt variant="headline" style={{ fontVariant: ['tabular-nums'] }}>
@@ -137,30 +139,48 @@ export interface PulseHouse {
 /**
  * FLOCK PULSE: the signature element. Whole-farm vitals at a glance; tap to see each house.
  */
-export function FlockPulseCard({ vitals, houses, summary, ok }: { vitals: Vital[]; houses: PulseHouse[]; summary: string; ok: boolean }) {
+export function FlockPulseCard({
+  vitals,
+  houses,
+  weak,
+  ok,
+  title,
+}: {
+  vitals: Vital[];
+  houses: PulseHouse[];
+  weak: string[];
+  ok: boolean;
+  /** A house name when the card shows one house instead of the whole farm. */
+  title?: string;
+}) {
   const c = useTheme();
+  const tr = useT();
   const [open, setOpen] = useState(false);
-  const spoken = vitals.map((v) => `${v.label} ${v.value}${!v.ok && v.value !== '—' ? ', below target' : ''}`).join('. ');
+  // One flock means nothing to break down, so the card stops being a toggle.
+  const split = houses.length > 1;
+  const summary = title
+    ? ok ? tr('On track') : tr('Needs a look')
+    : weak.length === 0 ? tr('All houses on track') : weak.length === 1 ? tr('{house} needs a look', { house: weak[0] }) : tr('{n} houses need a look', { n: weak.length });
+  const spoken = vitals.map((v) => `${tr(v.label)} ${v.value}${!v.ok && v.value !== '—' ? `, ${tr('below target')}` : ''}`).join('. ');
 
   return (
     <Animated.View layout={LinearTransition.springify().damping(18)}>
       <Card padded={false}>
         <Pressable
-          onPress={() => setOpen((o) => !o)}
-          accessibilityRole="button"
-          accessibilityLabel={`Flock pulse. ${summary}. ${spoken}.`}
-          accessibilityHint={open ? 'Hides each house' : 'Shows each house'}
-          accessibilityState={{ expanded: open }}
+          onPress={split ? () => setOpen((o) => !o) : undefined}
+          disabled={!split}
+          accessibilityRole={split ? 'button' : undefined}
+          accessibilityLabel={`${title ?? tr('Flock pulse')}. ${summary}. ${spoken}.`}
+          accessibilityHint={split ? (open ? tr('Hides each house') : tr('Shows each house')) : undefined}
+          accessibilityState={split ? { expanded: open } : undefined}
           style={{ padding: space.lg, gap: space.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <Txt variant="label" tone="secondary">
-                FLOCK PULSE
-              </Txt>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm }}>
+            <Txt variant="label" tone="secondary" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {(title ?? tr('Flock pulse')).toUpperCase()}
+            </Txt>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 1 }}>
               <Icon name={ok ? 'checkCircle' : 'warning'} size={18} color={ok ? c.sageText : c.barnText} />
-              <Txt variant="label" color={ok ? c.sageText : c.barnText}>
+              <Txt variant="label" color={ok ? c.sageText : c.barnText} numberOfLines={1}>
                 {summary}
               </Txt>
             </View>
@@ -173,14 +193,16 @@ export function FlockPulseCard({ vitals, houses, summary, ok }: { vitals: Vital[
               ))}
             </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs }}>
-            <Txt variant="label" tone="secondary">
-              {open ? 'Hide houses' : 'Each house'}
-            </Txt>
-            <Icon name={open ? 'chevronUp' : 'chevronDown'} size={18} color={c.inkSecondary} />
-          </View>
+          {split && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs }}>
+              <Txt variant="label" tone="secondary">
+                {open ? tr('Hide houses') : tr('Each house')}
+              </Txt>
+              <Icon name={open ? 'chevronUp' : 'chevronDown'} size={18} color={c.inkSecondary} />
+            </View>
+          )}
         </Pressable>
-        {open && (
+        {open && split && (
           <Animated.View entering={FadeIn.duration(motion.fade)} exiting={FadeOut.duration(150)} style={{ paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.md }}>
             {houses.map((h) => (
               <View

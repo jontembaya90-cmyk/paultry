@@ -10,41 +10,62 @@ import { useDraft } from '@/components/onboarding-draft';
 import { Card } from '@/components/surface';
 import { Txt } from '@/components/text';
 import { breedById, interpolate, SPECIES_LABEL, vaccineSchedule } from '@/data/breeds';
+import { feedingNow, say } from '@/data/care';
 import { addDays, fmt, today } from '@/data/format';
 import { createFarm } from '@/data/store';
 import { haptic } from '@/lib/haptics';
+import { useLang, useT } from '@/lib/i18n';
 import { space, useTheme } from '@/theme';
 
 export default function Ready() {
   const c = useTheme();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
+  const tr = useT();
+  const lang = useLang();
   const { draft } = useDraft();
-  const f = draft.flock;
-  const breed = breedById(f.breedId);
-  const born = addDays(today(), -f.ageDays);
-  const upcoming = vaccineSchedule(breed.species).filter((v) => v.ageDay >= f.ageDays);
+  const flocks = draft.flocks.map((f) => ({ ...f, breed: breedById(f.breedId), born: addDays(today(), -f.ageDays) }));
+  const first = flocks[0];
+  const breed = first.breed;
+  const upcoming = flocks
+    .flatMap((f) => vaccineSchedule(f.breed.species).filter((v) => v.ageDay >= f.ageDays).map((v) => ({ ...v, on: addDays(f.born, v.ageDay) })))
+    .sort((a, b) => (a.on < b.on ? -1 : 1));
   const next = upcoming[0];
-  const house = draft.houses[f.houseIndex] ?? draft.houses[0];
-  const feedKg = f.count * interpolate(breed.feed, f.ageDays);
+  const birds = flocks.reduce((n, f) => n + f.count, 0);
+  const feedKg = flocks.reduce((n, f) => n + f.count * interpolate(f.breed.feed, f.ageDays), 0);
   const unit = SPECIES_LABEL[breed.species].many;
 
-  const target = breed.marketDay
-    ? `Reach ${interpolate(breed.weight, breed.marketDay).toFixed(1)} kg by market day ${breed.marketDay}`
-    : breed.lay
-      ? `Point of lay around week ${Math.ceil(breed.lay.find(([, r]) => r > 0.04)?.[0] ?? 20)}, peaking near ${fmt.pct(Math.max(...breed.lay.map(([, r]) => r)))}`
-      : `Growth curve for ${breed.name}`;
+  const target = flocks.length > 1
+    ? tr('A growth curve for each of your {n} flocks', { n: flocks.length })
+    : breed.marketDay
+      ? tr('Reach {kg} kg by market day {day}', { kg: interpolate(breed.weight, breed.marketDay).toFixed(1), day: breed.marketDay })
+      : breed.lay
+        ? tr('Point of lay around week {week}, peaking near {pct}', { week: Math.ceil(breed.lay.find(([, r]) => r > 0.04)?.[0] ?? 20), pct: fmt.pct(Math.max(...breed.lay.map(([, r]) => r))) })
+        : tr('Growth curve for {breed}', { breed: breed.name });
 
+  const where = flocks.length > 1
+    ? tr('{birds} birds in {n} houses.', { birds: fmt.int(birds), n: flocks.length })
+    : `${fmt.int(first.count)} ${breed.name} ${unit} · ${draft.houses[first.houseIndex]?.name ?? ''} · ${first.ageDays === 0 ? tr('Day-old') : first.ageDays < 28 ? tr('day {n}', { n: first.ageDays }) : tr('week {n}', { n: Math.floor(first.ageDays / 7) })}.`;
+  const empty = draft.houses.filter((_, i) => !draft.flocks.some((f) => f.houseIndex === i));
+
+  // The first flock's feed now and its next change, the same plan its flock page shows.
+  const feeding = feedingNow({ id: 'draft', houseId: '', breedId: first.breedId, hatchedOn: first.born, placedCount: first.count, status: 'active' });
   const items: { icon: IconName; tone: string; title: string; body: string }[] = [
     {
       icon: 'vaccine',
       tone: c.skyText,
-      title: `${upcoming.length} vaccinations scheduled`,
-      body: next ? `First: ${next.name} on ${fmt.dayShort(addDays(born, next.ageDay))}` : 'All core vaccines already given',
+      title: tr('{n} {n|vaccination|vaccinations} scheduled', { n: upcoming.length }),
+      body: next ? tr('First: {name} on {date}', { name: next.name, date: fmt.dayShort(next.on) }) : tr('All core vaccines already given'),
     },
-    { icon: 'chart', tone: c.sageText, title: 'Growth targets set', body: target },
-    { icon: 'feeder', tone: c.wheatText, title: `About ${fmt.int(feedKg)} kg of feed a day`, body: `For ${fmt.int(f.count)} ${unit} at this age. Rises as they grow.` },
-    { icon: 'checkCircle', tone: c.yolkText, title: 'Daily tasks ready', body: 'Feeding, water checks and egg collection, in the order you do them.' },
+    { icon: 'chart', tone: c.sageText, title: tr('Growth targets set'), body: target },
+    {
+      icon: 'feed',
+      tone: c.wheatText,
+      title: tr('Feed now: {feed}', { feed: say(feeding.current.name, lang) }),
+      body: feeding.next ? tr('Then {feed} from {date}. The Health tab has the full feeding and vaccine guide.', { feed: say(feeding.next.phase.name, lang), date: fmt.dayShort(feeding.next.on) }) : tr('The Health tab has the full feeding and vaccine guide.'),
+    },
+    { icon: 'feeder', tone: c.wheatText, title: tr('About {kg} kg of feed a day', { kg: fmt.int(feedKg) }), body: tr('For {birds} birds at their age today. Rises as they grow.', { birds: fmt.int(birds) }) },
+    { icon: 'checkCircle', tone: c.yolkText, title: tr('Daily tasks ready'), body: tr('Feeding, water checks and egg collection, in the order you do them.') },
   ];
 
   useEffect(() => {
@@ -63,10 +84,10 @@ export default function Ready() {
           </Animated.View>
           <Animated.View entering={reduced ? FadeIn : FadeInDown.delay(300).springify()} style={{ alignItems: 'center', gap: space.xs }}>
             <Txt variant="largeTitle" center accessibilityRole="header">
-              Your plan is ready
+              {tr('Your plan is ready')}
             </Txt>
             <Txt variant="body" tone="secondary" center>
-              {fmt.int(f.count)} {breed.name} {unit} in {house?.name ?? 'your house'}, {f.ageDays === 0 ? 'day-old' : f.ageDays < 28 ? `day ${f.ageDays}` : `week ${Math.floor(f.ageDays / 7)}`}.
+              {where}
             </Txt>
           </Animated.View>
         </View>
@@ -85,13 +106,18 @@ export default function Ready() {
             </Animated.View>
           ))}
         </View>
+        {empty.length > 0 && (
+          <Txt variant="callout" tone="secondary" center>
+            {tr('{names}: empty for now. Add birds from the Farm tab when you place them.', { names: empty.map((h) => h.name).join(', ') })}
+          </Txt>
+        )}
         <Txt variant="caption" tone="secondary" center>
-          Vaccination plans are a common starting point. Confirm yours with your vet; you can edit it any time.
+          {tr('Vaccination plans are a common starting point. Confirm yours with your vet; you can edit it any time.')}
         </Txt>
       </ScrollView>
       <View style={{ paddingHorizontal: space.gutter, paddingBottom: insets.bottom + space.lg, paddingTop: space.md, maxWidth: 560, width: '100%', alignSelf: 'center' }}>
         <Button
-          title="Go to Today"
+          title={tr('Go to Today')}
           size="xl"
           full
           onPress={() => {

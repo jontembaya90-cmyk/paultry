@@ -116,11 +116,12 @@ export const BREEDS: Breed[] = [
     lay: dualLay, weight: dualWeight, feed: dualFeed, waterRatio: 2, stages: dualStages,
   },
   {
-    id: 'sasso', name: 'Sasso', species: 'indigenous', blurb: 'Coloured dual-purpose · tolerant of heat',
+    // The id stays 'sasso' so flocks saved before the rename keep their breed.
+    id: 'sasso', name: 'Sasso F1', species: 'indigenous', blurb: 'Improved kienyeji · fast-growing · meat and eggs',
     lay: dualLay, weight: dualWeight.map(([d, w]) => [d, w * 0.95]), feed: dualFeed, waterRatio: 2, stages: dualStages,
   },
   {
-    id: 'kenbro', name: 'Kenbro', species: 'indigenous', blurb: 'Kenyan dual-purpose · meat and eggs',
+    id: 'kenbro', name: 'Kenbro', species: 'indigenous', blurb: 'Improved kienyeji · bred in Kenya · meat and eggs',
     lay: dualLay, weight: dualWeight, feed: dualFeed, waterRatio: 2, stages: dualStages,
   },
   {

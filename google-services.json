@@ -14,11 +14,72 @@
       },
       "oauth_client": [
         {
+          "client_id": "849510799591-7h7nkne7o8u6iibdqj2qbkhnvf48l3an.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.poultrypro.app",
+            "certificate_hash": "4273ea57ebfe064bddfde00f557d09ce8e4d38d7"
+          }
+        },
+        {
           "client_id": "849510799591-bvet4p84ejo3gjv21s9lum01hkrfe81u.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.poultrypro.app",
             "certificate_hash": "aae50a5cd00f1b8cf5c1a573043259d04668c94d"
+          }
+        },
+        {
+          "client_id": "849510799591-sqdks68b4g23ge72fr8uk7hevqkv8t32.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClPUurAWmLEqN4mBy-kYK-8Klfu9EKv14"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "849510799591-sqdks68b4g23ge72fr8uk7hevqkv8t32.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:849510799591:android:cff240defa736690b6aa42",
+        "android_client_info": {
+          "package_name": "com.roost.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "849510799591-4bjv14mkma6gdqn6cppg3n8fi8gkpd9a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.roost.app",
+            "certificate_hash": "bde402b174995f75345341b144991081cb2e6fea"
+          }
+        },
+        {
+          "client_id": "849510799591-6qrp7iug7rhq9fno39canhhjtohqvgfj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.roost.app",
+            "certificate_hash": "d78cb57ee3ceb5dd7cf7662387b88de3ba0f90d4"
+          }
+        },
+        {
+          "client_id": "849510799591-nup4oaso0bdtumk92dkq02n3a2q3hrth.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.roost.app",
+            "certificate_hash": "4273ea57ebfe064bddfde00f557d09ce8e4d38d7"
           }
         },
         {

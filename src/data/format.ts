@@ -61,8 +61,8 @@ export const fmt = {
   /** "Oct 14" */
   monthDay: (day: Day) => parseDay(day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
   /** "Saturday, 10 October" */
-  dayLong: (day: Day) =>
-    parseDay(day).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }),
+  dayLong: (day: Day, locale?: string) =>
+    parseDay(day).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }),
   time: (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
   hour: (h: number) => {
     const suffix = h < 12 ? 'a.m.' : 'p.m.';
@@ -85,7 +85,7 @@ export function uid(prefix = 'id') {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export function greeting(date = new Date()) {
+export function greeting(date = new Date()): 'Good morning' | 'Good afternoon' | 'Good evening' {
   const h = date.getHours();
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';

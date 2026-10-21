@@ -6,7 +6,7 @@ import { Button, IconButton } from '@/components/button';
 import { Segmented } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icon';
 import { FAB_CLEARANCE } from '@/components/quick-log-fab';
-import { Badge, Banner, Card, Divider, SectionHeader } from '@/components/surface';
+import { Badge, Banner, Card, Divider, Row, SectionHeader } from '@/components/surface';
 import { Txt } from '@/components/text';
 import { ROUTE_LABEL } from '@/data/breeds';
 import { daysBetween, fmt, parseDay, toDay, today } from '@/data/format';
@@ -14,6 +14,7 @@ import { activeWithdrawals, houseName, vaccineDue, vaccineState, type VaccineSta
 import { markVaccination, useFarm } from '@/data/store';
 import type { FarmState, Vaccination, VaccineRoute } from '@/data/types';
 import { haptic } from '@/lib/haptics';
+import { useT } from '@/lib/i18n';
 import { radius, space, useTheme, type Tone } from '@/theme';
 
 const ROUTE_ICON: Record<VaccineRoute, IconName> = { water: 'drinker', 'eye-drop': 'water', injection: 'vaccine', 'wing-web': 'vaccine', spray: 'air' };
@@ -152,6 +153,7 @@ function Calendar({ s, list }: { s: FarmState; list: Vaccination[] }) {
 
 export default function HealthScreen() {
   const c = useTheme();
+  const tr = useT();
   const farm = useFarm();
   const [view, setView] = useState<'timeline' | 'calendar'>('timeline');
   const [showDone, setShowDone] = useState(false);
@@ -192,6 +194,16 @@ export default function HealthScreen() {
           </Txt>
         </Card>
       </View>
+
+      <Card style={{ paddingVertical: space.xs }}>
+        <Row
+          icon="vaccine"
+          iconTone="sky"
+          title={tr('Vaccine & feeding guide')}
+          subtitle={tr('What to give and when, from day-old: layers, broilers, kienyeji and more')}
+          onPress={() => router.push('/health/guide')}
+        />
+      </Card>
 
       <View style={{ gap: space.md }}>
         <SectionHeader title="Vaccinations" />

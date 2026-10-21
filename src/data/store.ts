@@ -11,8 +11,10 @@ import type {
   Expense,
   FarmState,
   FarmType,
+  FeedStock,
   Flock,
   House,
+  Incubator,
   LossCause,
   Person,
   Sale,
@@ -125,42 +127,48 @@ export function setSyncStatus(pending: number, isSyncing: boolean, lastSyncedAt?
  * laying flocks, feeding, water checks, lock-up for free-range, vaccines due, hatchery
  * milestones and the evening biosecurity walk-round.
  */
+function crew(s: FarmState) {
+  const workers = s.people.filter((p) => p.role === 'worker');
+  const lead = s.people.find((p) => p.role === 'manager') ?? s.people[0];
+  const pick = (i: number) => (workers[i % Math.max(1, workers.length)] ?? lead)?.id ?? s.settings.meId;
+  return { lead, pick };
+}
+
+/** One flock's share of a day's routine: egg collections, water check, lock-up and vaccines due. */
+function flockTasks(s: FarmState, f: Flock, i: number, vaccinations: FarmState['vaccinations'], add: (task: Omit<Task, 'id' | 'day'>) => void) {
+  const t = today();
+  const { lead, pick } = crew(s);
+  const house = s.houses.find((h) => h.id === f.houseId);
+  const breed = breedById(f.breedId);
+  const age = daysBetween(f.hatchedOn, t);
+  if (breed.lay && age / 7 >= breed.lay[0][0]) {
+    add({ slot: 'morning', title: 'Collect eggs', detail: house?.name, assignee: pick(i), flockId: f.id, kind: 'eggs' });
+    add({ slot: 'evening', title: 'Collect eggs', detail: house?.name, assignee: pick(i), flockId: f.id, kind: 'eggs' });
+  }
+  add({ slot: 'midday', title: 'Check drinkers and water meter', detail: house?.name, assignee: pick(i + 1), flockId: f.id, kind: 'water' });
+  if (house?.type === 'free-range') {
+    add({ slot: 'evening', title: 'Bring birds in and lock up', detail: house.name, assignee: pick(i + 1), flockId: f.id, kind: 'check' });
+  }
+  for (const v of vaccinations) {
+    if (v.doneOn || v.flockId !== f.id) continue;
+    if (addDays(f.hatchedOn, v.ageDay) <= t) {
+      add({ slot: 'morning', title: v.name, detail: `${house?.name ?? ''} · ${v.route === 'water' ? 'drinking water' : v.route}`, assignee: lead?.id ?? pick(0), flockId: f.id, kind: 'vaccine', vaccinationId: v.id });
+    }
+  }
+}
+
 export function ensureToday() {
   const t = today();
   if (!state.onboarded || state.tasks.some((task) => task.day === t)) return;
   const tasks: Task[] = [];
-  const workers = state.people.filter((p) => p.role === 'worker');
-  const lead = state.people.find((p) => p.role === 'manager') ?? state.people[0];
-  const pick = (i: number) => (workers[i % Math.max(1, workers.length)] ?? lead)?.id ?? state.settings.meId;
+  const { lead, pick } = crew(state);
   const active = state.flocks.filter((f) => f.status === 'active');
 
   // Ids are derived from the day, so two phones building the same list write the same documents.
   const add = (task: Omit<Task, 'id' | 'day'>) => tasks.push({ ...task, id: `task_${t}_${tasks.length}`, day: t });
 
   add({ slot: 'morning', title: 'Morning feed', detail: 'All houses', assignee: pick(1), kind: 'feed' });
-  active.forEach((f, i) => {
-    const house = state.houses.find((h) => h.id === f.houseId);
-    const breed = breedById(f.breedId);
-    const age = daysBetween(f.hatchedOn, t);
-    if (breed.lay && age / 7 >= breed.lay[0][0]) {
-      add({ slot: 'morning', title: 'Collect eggs', detail: house?.name, assignee: pick(i), flockId: f.id, kind: 'eggs' });
-      add({ slot: 'evening', title: 'Collect eggs', detail: house?.name, assignee: pick(i), flockId: f.id, kind: 'eggs' });
-    }
-    add({ slot: 'midday', title: 'Check drinkers and water meter', detail: house?.name, assignee: pick(i + 1), flockId: f.id, kind: 'water' });
-    if (house?.type === 'free-range') {
-      add({ slot: 'evening', title: 'Bring birds in and lock up', detail: house.name, assignee: pick(i + 1), flockId: f.id, kind: 'check' });
-    }
-  });
-  for (const v of state.vaccinations) {
-    if (v.doneOn) continue;
-    const f = state.flocks.find((x) => x.id === v.flockId);
-    if (!f || f.status !== 'active') continue;
-    const dueDay = addDays(f.hatchedOn, v.ageDay);
-    if (dueDay <= t) {
-      const house = state.houses.find((h) => h.id === f.houseId);
-      add({ slot: 'morning', title: v.name, detail: `${house?.name ?? ''} · ${v.route === 'water' ? 'drinking water' : v.route}`, assignee: lead?.id ?? pick(0), flockId: f.id, kind: 'vaccine', vaccinationId: v.id });
-    }
-  }
+  active.forEach((f, i) => flockTasks(state, f, i, state.vaccinations, add));
   for (const inc of state.incubators) {
     if (inc.hatched !== undefined) continue;
     const day = daysBetween(inc.setOn, t);
@@ -179,27 +187,40 @@ export interface OnboardingInput {
   ownerName: string;
   farmTypes: FarmType[];
   houses: Omit<House, 'id'>[];
-  flock: { breedId: string; houseIndex: number; ageDays: number; count: number };
+  /** At most one starting flock per house; houses without one start empty. */
+  flocks: FlockInput[];
 }
 
+export interface FlockInput {
+  breedId: string;
+  houseIndex: number;
+  ageDays: number;
+  count: number;
+}
+
+/** Theme, language and offline mode belong to this phone, not to whichever farm is loaded. */
+const deviceSettings = () => ({ appearance: state.settings.appearance, language: state.settings.language, offline: state.settings.offline });
+
 export function loadSampleFarm() {
-  set({ ...sampleFarm(), settings: { ...sampleFarm().settings, offline: state.settings.offline } });
+  set({ ...sampleFarm(), settings: { ...sampleFarm().settings, ...deviceSettings() } });
   ensureToday();
 }
 
-export function createFarm(input: OnboardingInput): { vaccines: number; firstDue?: string } {
-  const t = today();
-  const houses: House[] = input.houses.map((h, i) => ({ ...h, id: `house_${i}_${uid('h')}` }));
-  const house = houses[Math.min(input.flock.houseIndex, houses.length - 1)];
-  const flock: Flock = {
+function newFlock(houseId: string, input: Omit<FlockInput, 'houseIndex'>): Flock {
+  return {
     id: uid('flock'),
-    houseId: house.id,
-    breedId: input.flock.breedId,
-    hatchedOn: addDays(t, -input.flock.ageDays),
-    placedCount: input.flock.count,
+    houseId,
+    breedId: input.breedId,
+    hatchedOn: addDays(today(), -input.ageDays),
+    placedCount: input.count,
     status: 'active',
   };
-  const vaccinations = scheduleFor(flock, t);
+}
+
+export function createFarm(input: OnboardingInput) {
+  const t = today();
+  const houses: House[] = input.houses.map((h, i) => ({ ...h, id: `house_${i}_${uid('h')}` }));
+  const flocks = input.flocks.filter((f) => houses[f.houseIndex]).map((f) => newFlock(houses[f.houseIndex].id, f));
   set({
     ...emptyFarm(),
     onboarded: true,
@@ -207,14 +228,58 @@ export function createFarm(input: OnboardingInput): { vaccines: number; firstDue
     farmTypes: input.farmTypes,
     people: [{ id: 'me', name: input.ownerName.trim(), role: 'owner' }],
     houses,
-    flocks: [flock],
-    vaccinations,
+    flocks,
+    vaccinations: flocks.flatMap((f) => scheduleFor(f, t)),
     settings: { ...state.settings, meId: 'me', workerMode: false },
     sync: state.sync,
   });
   ensureToday();
-  const next = vaccinations.find((v) => !v.doneOn);
-  return { vaccines: vaccinations.filter((v) => !v.doneOn).length, firstDue: next ? addDays(flock.hatchedOn, next.ageDay) : undefined };
+}
+
+/* ───────────────────────────── Houses & flocks ───────────────────────────── */
+
+export function addHouse(house: Omit<House, 'id'>): House {
+  const h: House = { ...house, id: uid('house') };
+  set((s) => ({ ...s, houses: [...s.houses, h] }));
+  return h;
+}
+
+export function updateHouse(id: string, patch: Partial<Omit<House, 'id'>>) {
+  set((s) => ({ ...s, houses: s.houses.map((h) => (h.id === id ? { ...h, ...patch } : h)) }));
+}
+
+/** Only a house that never held birds can go: past flocks keep pointing at it for their records. */
+export function removeHouse(id: string) {
+  set((s) => (s.flocks.some((f) => f.houseId === id) ? s : { ...s, houses: s.houses.filter((h) => h.id !== id) }));
+}
+
+/**
+ * Place new birds. Builds their vaccination plan and, because today's routine is generated
+ * once a day, adds their share of today's tasks straight away.
+ */
+export function addFlock(houseId: string, input: Omit<FlockInput, 'houseIndex'>): Flock {
+  const flock = newFlock(houseId, input);
+  set((s) => {
+    const vaccinations = scheduleFor(flock, today());
+    const next = { ...s, flocks: [...s.flocks, flock], vaccinations: [...s.vaccinations, ...vaccinations] };
+    const tasks: Task[] = [];
+    if (s.tasks.some((task) => task.day === today())) {
+      const add = (task: Omit<Task, 'id' | 'day'>) => tasks.push({ ...task, id: `task_${today()}_${flock.id}_${tasks.length}`, day: today() });
+      flockTasks(next, flock, s.flocks.length, vaccinations, add);
+    }
+    return { ...next, tasks: [...s.tasks, ...tasks] };
+  });
+  return flock;
+}
+
+export function addFeedStore(store: Omit<FeedStock, 'id'>) {
+  set((s) => ({ ...s, stocks: [...s.stocks, { ...store, id: uid('stock') }] }));
+}
+
+export function addIncubator(name: string, eggs: number, setOn: string) {
+  const inc: Incubator = { id: uid('inc'), name, eggs, setOn, tempC: 37.6, humidity: 55, candling: [] };
+  set((s) => ({ ...s, incubators: [...s.incubators, inc] }));
+  return inc;
 }
 
 export function resetFarm() {

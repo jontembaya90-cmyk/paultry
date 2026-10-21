@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertCard } from '@/components/alert-card';
 import { Button } from '@/components/button';
+import { Chip, ChipRow } from '@/components/controls';
 import { FlockPulseCard } from '@/components/flock-pulse';
 import { Icon } from '@/components/icon';
 import { FAB_CLEARANCE } from '@/components/quick-log-fab';
-import { Banner, Card, Divider, SectionHeader } from '@/components/surface';
+import { Banner, Card, Divider, Row, SectionHeader } from '@/components/surface';
 import { Txt } from '@/components/text';
 import { EggHero, EmptyState, FeedRunwayRow, HeatStrip, SyncPill, TaskRow } from '@/components/today-parts';
 import { currentSlot, fmt, greeting, today } from '@/data/format';
@@ -18,6 +19,7 @@ import {
   ageOf,
   alerts as getAlerts,
   allTasksDone,
+  birdsIn,
   eggsOn,
   eggTarget,
   feedRunway,
@@ -32,6 +34,7 @@ import {
 } from '@/data/selectors';
 import { addTask, dismissAlert, getFarm, markVaccination, toggleTask, updateSettings, useFarm, useSyncing } from '@/data/store';
 import { haptic } from '@/lib/haptics';
+import { dateLocale, taskTitle, useLang, useT } from '@/lib/i18n';
 import { radius, space, useTheme } from '@/theme';
 
 export default function TodayScreen() {
@@ -43,19 +46,28 @@ export default function TodayScreen() {
   const wide = width >= 840;
   const t = today();
 
+  const tr = useT();
+  const lang = useLang();
   const me = farm.people.find((p) => p.id === farm.settings.meId);
-  const flocks = activeFlocks(farm);
-  const pulse = flockPulse(farm);
+  // Whole farm, or one house. Falls back to the whole farm if that house is removed elsewhere.
+  const [houseId, setHouseId] = useState<string>();
+  const house = farm.houses.find((h) => h.id === houseId);
+  const flocks = activeFlocks(farm).filter((f) => !house || f.houseId === house.id);
+  const scope = new Set(flocks.map((f) => f.id));
+  const pulse = flockPulse(farm, t, house?.id);
   const alerts = getAlerts(farm);
   const count = needsYou(farm);
   const spike = mortalitySpike(farm);
   const withdrawals = activeWithdrawals(farm);
   const heat = heatOutlook(farm);
-  const groups = tasksOn(farm);
+  // In one house: its own tasks plus the farm-wide ones (feeding round, biosecurity walk).
+  const groups = tasksOn(farm).map((g) => ({ ...g, tasks: g.tasks.filter((x) => !house || !x.flockId || scope.has(x.flockId)) }));
   const total = groups.reduce((n, g) => n + g.tasks.length, 0);
   const done = groups.reduce((n, g) => n + g.tasks.filter((x) => x.doneAt).length, 0);
   const laying = flocks.some((f) => isLaying(f));
   const newFlock = flocks.find((f) => ageOf(f).days < 7);
+  const eggsToday = house ? flocks.reduce((n, f) => n + eggsOn(farm, t, f.id), 0) : eggsOn(farm, t);
+  const eggGoal = house ? flocks.reduce((n, f) => n + eggTarget(farm, t, f.id), 0) : eggTarget(farm, t);
   const slotNow = currentSlot();
   const closed = farm.coopClosed.includes(t);
 
@@ -95,19 +107,19 @@ export default function TodayScreen() {
   };
 
   const headline =
-    count === 0 ? 'Everything is on track.' : count === 1 ? '1 thing needs you today.' : `${count} things need you today.`;
+    count === 0 ? tr('Everything is on track.') : count === 1 ? tr('1 thing needs you today.') : tr('{n} things need you today.', { n: count });
 
   const header = (
     <View style={{ gap: space.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md, flexWrap: 'wrap' }}>
         <Txt variant="label" tone="secondary">
-          {fmt.dayLong(t).toUpperCase()}
+          {fmt.dayLong(t, dateLocale(lang)).toUpperCase()}
         </Txt>
         <SyncPill pending={farm.sync.pending} syncing={syncing} offline={farm.settings.offline} onPress={() => router.push('/farm')} />
       </View>
       <View accessible accessibilityRole="header">
         <Txt variant="largeTitle">
-          {greeting()}
+          {tr(greeting())}
           {me?.name ? `, ${me.name}.` : '.'}
         </Txt>
         <Txt variant="title2" color={count > 0 ? c.barnText : c.sageText}>
@@ -124,23 +136,23 @@ export default function TodayScreen() {
           strong
           tone="barn"
           icon="warning"
-          title={`${spike.house}: ${spike.count} losses today`}
-          body="That is far above normal. Act now, calmly:">
+          title={tr('{house}: {n} losses today', { house: spike.house, n: spike.count })}
+          body={tr('That is far above normal. Act now, calmly:')}>
           <View style={{ gap: space.xs }}>
-            {[
+            {([
               'Separate sick-looking birds and keep the house closed to visitors.',
               'Remove the dead birds and keep 2–3 for your vet to examine.',
               'Check water, feed and temperature right away.',
               'Call your vet. Share the health report below.',
-            ].map((step, i) => (
+            ] as const).map((step, i) => (
               <Txt key={step} variant="callout" color={c.onBarn}>
-                {i + 1}. {step}
+                {i + 1}. {tr(step)}
               </Txt>
             ))}
           </View>
           <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
-            <Button title="Symptom check" variant="secondary" onPress={() => router.push('/health/symptoms')} style={{ flexGrow: 1 }} />
-            <Button title="Log losses" variant="secondary" onPress={() => router.push(`/log/losses?flock=${spike.flock.id}`)} style={{ flexGrow: 1 }} />
+            <Button title={tr('Symptom check')} variant="secondary" onPress={() => router.push('/health/symptoms')} style={{ flexGrow: 1 }} />
+            <Button title={tr('Log losses')} variant="secondary" onPress={() => router.push(`/log/losses?flock=${spike.flock.id}`)} style={{ flexGrow: 1 }} />
           </View>
         </Banner>
       )}
@@ -154,7 +166,7 @@ export default function TodayScreen() {
           <Icon name="medication" size={22} color={c.barnText} />
           <Txt variant="callout" style={{ flex: 1 }}>
             <Txt variant="headline">{w.house}: </Txt>
-            no sales until {fmt.monthDay(w.withdrawalUntil)}
+            {tr('no sales until {date}', { date: fmt.monthDay(w.withdrawalUntil) })}
           </Txt>
           <Icon name="chevronRight" size={20} color={c.barnText} />
         </Pressable>
@@ -162,34 +174,67 @@ export default function TodayScreen() {
     </>
   );
 
+  // One chip per house, so every house is one tap away, including empty ones.
+  const switcher = farm.houses.length > 1 && (
+    <ChipRow scroll>
+      <Chip label={tr('Whole farm')} icon="farm" selected={!house} onPress={() => setHouseId(undefined)} />
+      {farm.houses.map((h) => {
+        const n = birdsIn(farm, h.id);
+        return (
+          <Chip
+            key={h.id}
+            label={n ? h.name : `${h.name} · ${tr('empty')}`}
+            icon={h.quarantine ? 'quarantine' : undefined}
+            selected={house?.id === h.id}
+            onPress={() => setHouseId(h.id)}
+          />
+        );
+      })}
+    </ChipRow>
+  );
+
   const vitals = flocks.length ? (
     <>
-      <FlockPulseCard {...pulse} />
+      <FlockPulseCard {...pulse} title={house?.name} />
       {newFlock && (
-        <Banner tone="sky" icon="chick" title={`${houseName(farm, newFlock)}: brooding week, day ${ageOf(newFlock).days}`} body="Less data this week, so here is what matters most:">
+        <Banner tone="sky" icon="chick" title={tr('{house}: brooding week, day {n}', { house: houseName(farm, newFlock), n: ageOf(newFlock).days })} body={tr('Less data this week, so here is what matters most:')}>
           <View style={{ gap: space.xs }}>
-            {['Brooder at 32–35°C. Chicks spread evenly means they are comfortable.', 'Fresh water first, then feed. Dip a few beaks to teach them.', 'Check on them every 3–4 hours, day and night.'].map((tip) => (
+            {([
+              'Brooder at 32–35°C. Chicks spread evenly means they are comfortable.',
+              'Fresh water first, then feed. Dip a few beaks to teach them.',
+              'Check on them every 3–4 hours, day and night.',
+            ] as const).map((tip) => (
               <View key={tip} style={{ flexDirection: 'row', gap: space.sm }}>
                 <Icon name="check" size={18} color={c.skyText} />
                 <Txt variant="callout" style={{ flex: 1 }}>
-                  {tip}
+                  {tr(tip)}
                 </Txt>
               </View>
             ))}
           </View>
         </Banner>
       )}
-      {laying && <EggHero eggs={eggsOn(farm, t)} target={eggTarget(farm, t)} onPress={() => router.push('/log-eggs')} />}
+      {laying && <EggHero eggs={eggsToday} target={eggGoal} onPress={() => router.push('/log-eggs')} />}
     </>
+  ) : house ? (
+    <Card>
+      <EmptyState
+        art="hens"
+        title={tr('{name} is empty', { name: house.name })}
+        body={tr('No birds here right now. When you place new birds, add them so ROOST can plan their vaccines and daily tasks.')}
+        action={tr('Add birds to {name}', { name: house.name })}
+        onAction={() => router.push({ pathname: '/add-flock', params: { house: house.id } })}
+      />
+    </Card>
   ) : (
     <Card>
-      <EmptyState art="hens" title="No active flocks" body="Add a flock and ROOST will build its vaccination plan and growth targets." action="Add a flock" onAction={() => router.push('/flocks')} />
+      <EmptyState art="hens" title={tr('No active flocks')} body={tr('Add a flock and ROOST will build its vaccination plan and growth targets.')} action={tr('Add a flock')} onAction={() => router.push('/add-flock')} />
     </Card>
   );
 
   const alertList = alerts.length > 0 && (
     <View style={{ gap: space.md }}>
-      <SectionHeader title="Needs you" />
+      <SectionHeader title={tr('Needs you')} />
       {alerts.map((a, i) => (
         <AlertCard
           key={a.id}
@@ -208,9 +253,9 @@ export default function TodayScreen() {
   const tasks = total > 0 && (
     <View style={{ gap: space.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <SectionHeader title="Today's tasks" style={{ flex: 1 }} />
-        <Txt variant="subhead" tone="secondary" accessibilityLabel={`${done} of ${total} tasks done`}>
-          {done} of {total} done
+        <SectionHeader title={house ? tr('Tasks · {name}', { name: house.name }) : tr('Today’s tasks')} style={{ flex: 1 }} />
+        <Txt variant="subhead" tone="secondary">
+          {tr('{done} of {total} done', { done, total })}
         </Txt>
       </View>
       {groups.filter((g) => g.tasks.length).map((g) => {
@@ -220,8 +265,8 @@ export default function TodayScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.xs }}>
               <Icon name={g.key === 'evening' ? 'moon' : 'sun'} size={18} color={g.key === slotNow ? c.yolkText : c.inkTertiary} />
               <Txt variant="label" color={g.key === slotNow ? c.yolkText : c.inkSecondary}>
-                {g.label.toUpperCase()}
-                {g.key === slotNow ? ' · NOW' : ''}
+                {tr(g.label).toUpperCase()}
+                {g.key === slotNow ? ` · ${tr('NOW')}` : ''}
               </Txt>
               {allDone && <Icon name="checkCircle" size={16} color={c.sageText} />}
             </View>
@@ -229,7 +274,7 @@ export default function TodayScreen() {
               <Fragment key={task.id}>
                 {i > 0 && <Divider inset={30 + space.md} />}
                 <TaskRow
-                  task={task}
+                  task={{ ...task, title: taskTitle(task.title, lang) }}
                   who={farm.people.find((p) => p.id === (task.doneBy ?? task.assignee))}
                   onToggle={() => onToggle(task.id)}
                 />
@@ -237,7 +282,7 @@ export default function TodayScreen() {
             ))}
             {g.key === 'evening' && allDone && (
               <Button
-                title={closed ? 'See today’s summary' : 'Close the coop'}
+                title={closed ? tr('See today’s summary') : tr('Close the coop')}
                 icon="moon"
                 variant={closed ? 'secondary' : 'primary'}
                 full
@@ -251,9 +296,9 @@ export default function TodayScreen() {
     </View>
   );
 
-  const feed = farm.stocks.length > 0 && (
+  const feed = farm.stocks.length > 0 ? (
     <View style={{ gap: space.md }}>
-      <SectionHeader title="Feed runway" action="Feed & water" onAction={() => router.push('/today/feed')} />
+      <SectionHeader title={tr('Feed runway')} action={tr('Feed & water')} onAction={() => router.push('/today/feed')} />
       <Card style={{ gap: space.lg }}>
         {farm.stocks.map((st, i) => {
           const r = feedRunway(farm, st.id);
@@ -266,6 +311,10 @@ export default function TodayScreen() {
         })}
       </Card>
     </View>
+  ) : flocks.length > 0 && (
+    <Card style={{ paddingVertical: space.xs }}>
+      <Row icon="feed" iconTone="yolk" title={tr('How much feed do you have?')} subtitle={tr('Add your feed store and ROOST warns you before it runs out.')} onPress={() => router.push('/add-feed')} />
+    </Card>
   );
 
   return (
@@ -298,6 +347,7 @@ export default function TodayScreen() {
         <View style={{ flexDirection: 'row', gap: space.xl, alignItems: 'flex-start' }}>
           <View style={{ flex: 1, gap: space.xl }}>
             {urgent}
+            {switcher}
             {vitals}
             {alertList}
           </View>
@@ -310,6 +360,7 @@ export default function TodayScreen() {
       ) : (
         <>
           {urgent}
+          {switcher}
           {vitals}
           {alertList}
           {tasks}

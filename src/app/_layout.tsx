@@ -85,6 +85,10 @@ export default function RootLayout() {
           <Stack.Protected guard={onboarded && !settings.workerMode}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="sale" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="add-flock" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="house" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="add-feed" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="add-incubator" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           </Stack.Protected>
           <Stack.Protected guard={onboarded && settings.workerMode}>
             <Stack.Screen name="worker" options={{ animation: 'fade' }} />

@@ -5,9 +5,10 @@ import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 import { Icon, type IconName } from '@/components/icon';
 import { Txt } from '@/components/text';
 import { haptic } from '@/lib/haptics';
+import { useT, type Phrase } from '@/lib/i18n';
 import { radius, space, toneColors, useTheme, type Tone } from '@/theme';
 
-const ITEMS: { key: string; label: string; hint: string; icon: IconName; tone: Tone; href: string }[] = [
+const ITEMS: { key: string; label: Phrase; hint: Phrase; icon: IconName; tone: Tone; href: string }[] = [
   { key: 'eggs', label: 'Eggs', hint: 'Trays, count or voice', icon: 'egg', tone: 'yolk', href: '/log-eggs' },
   { key: 'feed', label: 'Feed', hint: 'Kilograms given', icon: 'feeder', tone: 'wheat', href: '/log/feed' },
   { key: 'water', label: 'Water', hint: 'Meter reading', icon: 'drinker', tone: 'sky', href: '/log/water' },
@@ -22,10 +23,11 @@ const ITEMS: { key: string; label: string; hint: string; icon: IconName; tone: T
 export default function QuickLog() {
   const c = useTheme();
   const reduced = useReducedMotion();
+  const tr = useT();
   return (
     <ScrollView contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, gap: space.lg }}>
       <Txt variant="title2" accessibilityRole="header">
-        What are you logging?
+        {tr('What are you logging?')}
       </Txt>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
         {ITEMS.map((it, i) => {
@@ -37,7 +39,7 @@ export default function QuickLog() {
               style={{ flexBasis: '47%', flexGrow: 1 }}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${it.label}. ${it.hint}`}
+                accessibilityLabel={`${tr(it.label)}. ${tr(it.hint)}`}
                 onPress={() => {
                   haptic.tick();
                   router.replace(it.href as never);
@@ -58,9 +60,9 @@ export default function QuickLog() {
                   <Icon name={it.icon} size={28} color={it.key === 'eggs' ? t.on : t.text} />
                 </View>
                 <View>
-                  <Txt variant="title3">{it.label}</Txt>
+                  <Txt variant="title3">{tr(it.label)}</Txt>
                   <Txt variant="caption" tone="secondary">
-                    {it.hint}
+                    {tr(it.hint)}
                   </Txt>
                 </View>
               </Pressable>

@@ -1,4 +1,5 @@
 import { breedById, interpolate, SPECIES_LABEL, type Breed } from './breeds';
+import { feedingNow, groupOf } from './care';
 import { addDays, daysBetween, fmt, monthKey, today } from './format';
 import type { Day, EggLog, FarmState, Flock, Incubator, Sale, Slot, Task, Vaccination } from './types';
 
@@ -6,6 +7,8 @@ export const eggTotal = (e: Pick<EggLog, 'large' | 'medium' | 'small' | 'cracked
   e.large + e.medium + e.small + e.cracked + e.dirty;
 
 export const activeFlocks = (s: FarmState) => s.flocks.filter((f) => f.status === 'active');
+export const flocksIn = (s: FarmState, houseId: string) => activeFlocks(s).filter((f) => f.houseId === houseId);
+export const birdsIn = (s: FarmState, houseId: string) => flocksIn(s, houseId).reduce((n, f) => n + aliveOn(s, f), 0);
 export const houseOf = (s: FarmState, flock: Flock) => s.houses.find((h) => h.id === flock.houseId);
 export const houseName = (s: FarmState, flock: Flock) => houseOf(s, flock)?.name ?? 'Unassigned';
 export const personName = (s: FarmState, id?: string) => {
@@ -235,7 +238,7 @@ export function currentStage(f: Flock, day: Day = today()) {
 
 export interface Vital {
   key: 'lay' | 'feed' | 'water' | 'livability';
-  label: string;
+  label: 'Lay rate' | 'Growth' | 'Feed' | 'Water' | 'Livability';
   /** Ring fill, 0–1. 1 means on target. */
   fill: number;
   value: string;
@@ -303,13 +306,14 @@ function vitalsFor(s: FarmState, flocks: Flock[], day: Day): Vital[] {
   ];
 }
 
-export function flockPulse(s: FarmState, day: Day = today()) {
-  const flocks = activeFlocks(s);
+/** Whole-farm vitals, or one house's when `houseId` is given. */
+export function flockPulse(s: FarmState, day: Day = today(), houseId?: string) {
+  const flocks = activeFlocks(s).filter((f) => !houseId || f.houseId === houseId);
   const vitals = vitalsFor(s, flocks, day);
   const houses = flocks.map((f) => ({ flock: f, house: houseName(s, f), vitals: vitalsFor(s, [f], day) }));
   const weak = houses.filter((h) => h.vitals.some((v) => !v.ok && v.value !== '—'));
   const summary = weak.length === 0 ? 'All houses on track' : weak.length === 1 ? `${weak[0].house} needs a look` : `${weak.length} houses need a look`;
-  return { vitals, houses, summary, ok: weak.length === 0 };
+  return { vitals, houses, summary, weak: weak.map((h) => h.house), ok: weak.length === 0 };
 }
 
 /* ───────────────────────────── Feed runway ───────────────────────────── */
@@ -456,6 +460,21 @@ export function alerts(s: FarmState, day: Day = today()): Alert[] {
     });
   }
 
+  // Feed changes (chick mash to growers, growers to layers…) three days ahead, so there is
+  // time to buy the new feed and mix it in gradually.
+  for (const f of activeFlocks(s)) {
+    const next = feedingNow(f, day).next;
+    if (!next || next.inDays > 3) continue;
+    const house = houseName(s, f);
+    out.push({
+      id: `feedchange-${f.id}-${next.phase.id}`, priority: 2, tone: 'yolk', kicker: 'Feed change',
+      title: next.inDays === 0 ? `${house}: switch to ${next.phase.name.en} today.` : `${house}: switch to ${next.phase.name.en} in ${next.inDays} day${next.inDays === 1 ? '' : 's'}.`,
+      body: 'Buy it now and mix it with the old feed over 3–5 days, so the birds don’t go off their food.',
+      primary: { label: 'Feeding guide', action: { type: 'navigate', href: `/health/guide?group=${groupOf(breedById(f.breedId).species).key}` } },
+      secondary: { label: 'Got it', action: { type: 'dismiss' } },
+    });
+  }
+
   for (const inc of s.incubators) {
     if (inc.hatched !== undefined) continue;
     const d = daysBetween(inc.setOn, day);
@@ -487,7 +506,7 @@ export function needsYou(s: FarmState, day: Day = today()) {
 
 /* ───────────────────────────── Tasks ───────────────────────────── */
 
-export const SLOTS: { key: Slot; label: string }[] = [
+export const SLOTS: { key: Slot; label: 'Morning' | 'Midday' | 'Evening' }[] = [
   { key: 'morning', label: 'Morning' },
   { key: 'midday', label: 'Midday' },
   { key: 'evening', label: 'Evening' },
@@ -592,7 +611,7 @@ export function customerBalances(s: FarmState, day: Day = today()) {
 
 /* ───────────────────────────── Hatchery ───────────────────────────── */
 
-export const HATCH_MILESTONES = [
+export const HATCH_MILESTONES: { day: number; label: 'Candle' | 'Lockdown' | 'Hatch' }[] = [
   { day: 7, label: 'Candle' },
   { day: 14, label: 'Candle' },
   { day: 18, label: 'Lockdown' },

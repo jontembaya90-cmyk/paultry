@@ -1,22 +1,17 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, G, Line, Rect, Text as SvgText } from 'react-native-svg';
 
 import { Button, IconButton } from '@/components/button';
-import { Chip, ChipRow, Field, Stepper } from '@/components/controls';
+import { HouseFields, nextHouseName } from '@/components/flock-form';
 import { OnboardingFrame } from '@/components/onboarding-frame';
 import { useDraft } from '@/components/onboarding-draft';
 import { Card } from '@/components/surface';
 import { Txt } from '@/components/text';
 import type { HouseType } from '@/data/types';
+import { useT } from '@/lib/i18n';
 import { space, useTheme } from '@/theme';
-
-const TYPES: { key: HouseType; label: string }[] = [
-  { key: 'deep-litter', label: 'Deep litter' },
-  { key: 'cage', label: 'Cage' },
-  { key: 'free-range', label: 'Free-range' },
-];
 
 /** A to-scale sketch of the farm: each house's footprint grows with its capacity. */
 function FloorPlan({ houses }: { houses: { name: string; capacity: number; type: HouseType }[] }) {
@@ -52,7 +47,7 @@ function FloorPlan({ houses }: { houses: { name: string; capacity: number; type:
                   [0, 1].map((r) => <Circle key={`${k}-${r}`} cx={bx + 14 + k * 12} cy={by + bh - 22 + r * 10} r={2} fill={c.wheat} opacity={0.6} />),
                 )}
               <SvgText x={bx + bw / 2} y={by + (house.type === 'deep-litter' ? bh / 2 - 4 : bh / 2 + 5)} fontSize={bw < 60 ? 10 : 13} fontWeight="700" fill={c.ink} textAnchor="middle">
-                {house.name.replace('House ', '') || '?'}
+                {house.name.replace(/^(House|Banda) /, '') || '?'}
               </SvgText>
             </G>
           );
@@ -63,50 +58,43 @@ function FloorPlan({ houses }: { houses: { name: string; capacity: number; type:
 }
 
 export default function HousesStep() {
-  const { draft, update } = useDraft();
+  const tr = useT();
+  const { draft, update, removeHouse } = useDraft();
   const houses = draft.houses;
   const set = (i: number, patch: Partial<(typeof houses)[number]>) => update({ houses: houses.map((h, k) => (k === i ? { ...h, ...patch } : h)) });
-  const add = () =>
-    update({ houses: [...houses, { name: `House ${String.fromCharCode(65 + houses.length)}`, capacity: 500, type: draft.farmTypes.includes('indigenous') ? 'free-range' : 'deep-litter' }] });
+  const freshHouse = (names: string[]) => ({
+    name: nextHouseName(names, tr('House')),
+    capacity: 500,
+    type: (draft.farmTypes.includes('indigenous') ? 'free-range' : 'deep-litter') as HouseType,
+  });
+  const add = () => update({ houses: [...houses, freshHouse(houses.map((h) => h.name))] });
+
+  // First visit: one house, with birds in it, ready to fill in.
+  useEffect(() => {
+    if (houses.length === 0) update({ houses: [freshHouse([])], flocks: [{ breedId: '', houseIndex: 0, ageDays: 0, count: 500 }] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <OnboardingFrame
       step={2}
-      title="Your houses"
-      subtitle="Where do your birds live? Capacity helps ROOST spot overcrowding."
-      footer={<Button title="Continue" size="xl" full disabled={!houses.every((h) => h.name.trim())} onPress={() => router.push('/onboarding/flock')} />}>
+      title={tr('Your houses')}
+      subtitle={tr('Where do your birds live? Capacity helps ROOST spot overcrowding.')}
+      footer={<Button title={tr('Continue')} size="xl" full disabled={!houses.length || !houses.every((h) => h.name.trim())} onPress={() => router.push('/onboarding/flock')} />}>
       <FloorPlan houses={houses} />
       {houses.map((house, i) => (
         <Card key={i} style={{ gap: space.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.md }}>
-            <View style={{ flex: 1 }}>
-              <Field label="Name" value={house.name} onChangeText={(name) => set(i, { name })} autoCapitalize="words" />
+          {houses.length > 1 && (
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -space.lg }}>
+              <IconButton icon="close" label={tr('Remove {name}', { name: house.name })} onPress={() => removeHouse(i)} size={48} />
             </View>
-            {houses.length > 1 && (
-              <IconButton icon="close" label={`Remove ${house.name}`} onPress={() => update({ houses: houses.filter((_, k) => k !== i) })} size={56} />
-            )}
-          </View>
-          <View style={{ gap: space.sm }}>
-            <Txt variant="label" tone="secondary">
-              CAPACITY
-            </Txt>
-            <Stepper label={`${house.name} capacity`} value={house.capacity} step={50} min={10} onChange={(capacity) => set(i, { capacity })} unit="birds" />
-          </View>
-          <View style={{ gap: space.sm }}>
-            <Txt variant="label" tone="secondary">
-              TYPE
-            </Txt>
-            <ChipRow>
-              {TYPES.map((t) => (
-                <Chip key={t.key} label={t.label} selected={house.type === t.key} onPress={() => set(i, { type: t.key })} />
-              ))}
-            </ChipRow>
-          </View>
+          )}
+          <HouseFields house={house} onChange={(patch) => set(i, patch)} />
         </Card>
       ))}
-      <Button title="Add another house" icon="add" variant="ghost" full onPress={add} />
+      <Button title={tr('Add another house')} icon="add" variant="ghost" full onPress={add} />
       <Txt variant="caption" tone="secondary" center>
-        {houses.reduce((n, h) => n + h.capacity, 0).toLocaleString()} birds of space across {houses.length} {houses.length === 1 ? 'house' : 'houses'}
+        {tr('{birds} birds of space across {n} {n|house|houses}', { birds: houses.reduce((n, h) => n + h.capacity, 0).toLocaleString(), n: houses.length })}
       </Txt>
     </OnboardingFrame>
   );

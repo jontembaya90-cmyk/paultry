@@ -15,7 +15,9 @@ import { breedById, SPECIES_LABEL } from '@/data/breeds';
 import { fmt } from '@/data/format';
 import { ageOf, currentStage, flockMetrics, houseOf, performanceSeries, personName, vaccineState, withdrawalFor } from '@/data/selectors';
 import { addPhoto, archiveFlock, useFarm } from '@/data/store';
-import type { LossCause } from '@/data/types';
+import { feedingNow, groupOf, say } from '@/data/care';
+import type { Flock, LossCause } from '@/data/types';
+import { useLang, useT } from '@/lib/i18n';
 import { pickFlockPhoto } from '@/lib/photos';
 import { radius, space, useTheme } from '@/theme';
 
@@ -107,6 +109,8 @@ export default function FlockDetail() {
           <SectionHeader title="Journey" />
           <LifecycleTimeline stages={stage.stages} index={stage.index} ageDays={age.days} endDay={endDay} />
         </View>
+
+        {active && <FeedingCard flock={flock} alive={m.alive} />}
 
         <Card style={{ gap: space.md }}>
           <Txt variant="title3">{perf.kind === 'lay' ? 'Lay rate vs standard' : 'Weight vs standard'}</Txt>
@@ -251,5 +255,50 @@ export default function FlockDetail() {
         )}
       </ScrollView>
     </>
+  );
+}
+
+/** What this flock eats now, how much, and when its feed changes next. */
+function FeedingCard({ flock, alive }: { flock: Flock; alive: number }) {
+  const c = useTheme();
+  const tr = useT();
+  const lang = useLang();
+  const feeding = feedingNow(flock);
+  const next = feeding.next;
+  const soon = next && next.inDays <= 7;
+  return (
+    <Card style={{ gap: space.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <Icon name="feed" size={22} color={c.wheatText} />
+        <Txt variant="title3" style={{ flex: 1 }}>
+          {tr('Feeding')}
+        </Txt>
+        <Badge tone="neutral" label={tr('{pct} protein', { pct: feeding.current.protein })} size="sm" />
+      </View>
+      <View style={{ gap: 2 }}>
+        <Txt variant="label" tone="secondary">
+          {tr('NOW')}
+        </Txt>
+        <Txt variant="headline">{say(feeding.current.name, lang)}</Txt>
+        <Txt variant="subhead" tone="secondary">
+          {tr('About {g} g per bird a day · {kg} kg for the flock', { g: feeding.gramsPerBird, kg: fmt.int((feeding.gramsPerBird * alive) / 1000) })}
+        </Txt>
+      </View>
+      {next && (
+        <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center', backgroundColor: soon ? c.yolkSoft : c.surfaceAlt, borderRadius: radius.md, padding: space.md }}>
+          <Icon name="calendar" size={20} color={soon ? c.yolkText : c.inkSecondary} />
+          <Txt variant="callout" style={{ flex: 1 }}>
+            {tr('Switch to {feed} on {date}', { feed: say(next.phase.name, lang), date: fmt.dayShort(next.on) })}
+            {next.inDays <= 14 ? ` · ${next.inDays === 0 ? tr('today') : tr('in {n} days', { n: next.inDays })}` : ''}
+          </Txt>
+        </View>
+      )}
+      <Button
+        title={tr('Vaccine & feeding guide')}
+        icon="vaccine"
+        variant="secondary"
+        onPress={() => router.push({ pathname: '/health/guide', params: { group: groupOf(breedById(flock.breedId).species).key } })}
+      />
+    </Card>
   );
 }

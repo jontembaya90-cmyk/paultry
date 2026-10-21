@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Fragment, useState } from 'react';
 import { Linking, Pressable, ScrollView, TextInput, View } from 'react-native';
 
@@ -13,6 +13,7 @@ import { addDays, fmt, today } from '@/data/format';
 import { activeFlocks, aliveOn, expectedFeed, expectedWater, feedOn, feedRunway, houseName, waterOn } from '@/data/selectors';
 import { reorderFeed, useFarm } from '@/data/store';
 import { haptic } from '@/lib/haptics';
+import { useT } from '@/lib/i18n';
 import { radius, space, useTheme } from '@/theme';
 
 const INGREDIENTS = [
@@ -45,6 +46,7 @@ function Bars({ actual, expected, color }: { actual: number[]; expected: number[
 
 export default function FeedAndWater() {
   const c = useTheme();
+  const tr = useT();
   const farm = useFarm();
   const params = useLocalSearchParams<{ reorder?: string }>();
   const [open, setOpen] = useState<string | undefined>(params.reorder);
@@ -60,7 +62,12 @@ export default function FeedAndWater() {
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.gutter, gap: space.xl, paddingBottom: FAB_CLEARANCE + space.xl, maxWidth: 720, width: '100%', alignSelf: 'center' }}>
       <View style={{ gap: space.md }}>
-        <SectionHeader title="In store" />
+        <SectionHeader title={tr('In store')} action={tr('Add feed')} onAction={() => router.push('/add-feed')} />
+        {farm.stocks.length === 0 && (
+          <Txt variant="subhead" tone="secondary">
+            {tr('Add your feed store and ROOST warns you before it runs out.')}
+          </Txt>
+        )}
         <View style={{ flexDirection: 'row', gap: space.md, flexWrap: 'wrap' }}>
           {farm.stocks.map((st) => {
             const r = feedRunway(farm, st.id);
